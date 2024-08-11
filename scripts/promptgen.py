@@ -19,7 +19,7 @@ from modules.ui_components import FormRow
 
 load_dotenv()  # take environment variables from .env.
 
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY").strip()
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 genai.configure(api_key=GOOGLE_API_KEY)
 model = genai.GenerativeModel("gemini-1.5-flash")
 
