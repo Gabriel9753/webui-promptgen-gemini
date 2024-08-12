@@ -6,7 +6,8 @@ import google.generativeai as genai
 import gradio as gr
 import torch
 import transformers
-from dotenv import load_dotenv
+
+# from dotenv import load_dotenv
 from modules import (
     devices,
     generation_parameters_copypaste,
@@ -17,30 +18,78 @@ from modules import (
 )
 from modules.ui_components import FormRow
 
-load_dotenv()  # take environment variables from .env.
+# load_dotenv()  # take environment variables from .env.
 
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-genai.configure(api_key=GOOGLE_API_KEY)
-model = genai.GenerativeModel("gemini-1.5-flash")
+# GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+# genai.configure(api_key=GOOGLE_API_KEY)
+# model = genai.GenerativeModel("gemini-1.5-flash")
+
+default_prompt = """
+You are an expert in creating detailed prompts using natural language to generate high quality images. The image generation model uses two different encoders to process the language:
+
+CLIP-optimized:
+- Use concise, keyword-rich descriptions
+- Separate concepts with commas
+- Prioritize visual attributes and style descriptors
+- Include artistic references or specific visual techniques when relevant
+
+T5-optimized:
+- Focus on clear, descriptive language
+- Use complete sentences or phrases
+- Emphasize overall scene composition and context
+- Include specific details about objects, colors, and spatial relationships
+
+-----------------------------------------------------------------------
+
+So use keywords and terms at the beginning of the new prompt to optimize for CLIP. Here, for example, the style and setting can be well directed.
+After the keywords to describe the image on a general level, optimize the prompt for T5. Here you can now use natural language to describe details of the image. Specific text can also be generated here by writing the text to be generated in "...".
+
+Below I give you my request, in any language and roughly describing what I want for a picture. Then write ONLY the optimized prompt in ENGLISH LANGUAGE!!!! Really only generate the one prompt and nothing more!!! Not even in bullet points or split for CLIP and T5, but ONE prompt that I can use directly to generate an image.
+
+My request:
+{{input}}
+"""
 
 
-def generate_batch(input_text):
-    response = model.generate_content(input_text, stream=False)
-    return response.text
+def generate_batch(model, input_text):
+    try:
+        response = model.generate_content(input_text, stream=False)
+        return response.text
+    except Exception as e:
+        return f"Error: {e}"
 
 
 def generate(prompt):
     print(f"The prompt is: {prompt}")
-    shared.state.textinfo = "Loading model..."
-    # shared.state.job_count = batch_count
 
-    shared.state.textinfo = ""
+    api_key = shared.opts.get("Google_API_KEY", "")
+    prompt_template = shared.opts.get("gemini_prompt", default_prompt)
+    model_name = shared.opts.get("promptgen_model", "gemini-1.5-flash")
+
+    if api_key == "" or api_key is None:
+        raise ValueError("Google API key is required for text generation")
+
+    if "{{input}}" not in prompt_template:
+        raise ValueError("Prompt template has to include {{input}}")
+
+    prompt = prompt_template.replace("{{input}}", prompt)
+    print(f"Using prompt: {prompt}")
+
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel(model_name)
+    except Exception as e:
+        raise ValueError(f"Error initializing model: {e}")
+
+    # shared.state.textinfo = "Loading model..."
+    # shared.state.job_count = batch_count
+    # shared.state.textinfo = ""
 
     markup = "<table><tbody>"
 
     index = 0
     for i in range(1):
-        texts = generate_batch(prompt)
+        texts = generate_batch(model, prompt)
         print(texts)
         shared.state.nextjob()
         for generated_text in texts:
@@ -93,111 +142,111 @@ def add_tab():
                     "Generate", elem_id="promptgen_generate", variant="primary"
                 )
 
-        with gr.Row(elem_id="promptgen_main"):
-            with gr.Column(variant="compact"):
-                selected_text = gr.TextArea(
-                    elem_id="promptgen_selected_text", visible=False
-                )
-                send_to_txt2img = gr.Button(
-                    elem_id="promptgen_send_to_txt2img", visible=False
-                )
-                send_to_img2img = gr.Button(
-                    elem_id="promptgen_send_to_img2img", visible=False
-                )
+            # with gr.Row(elem_id="promptgen_main"):
+            #     with gr.Column(variant="compact"):
+            #         selected_text = gr.TextArea(
+            #             elem_id="promptgen_selected_text", visible=False
+            #         )
+            #         send_to_txt2img = gr.Button(
+            #             elem_id="promptgen_send_to_txt2img", visible=False
+            #         )
+            #         send_to_img2img = gr.Button(
+            #             elem_id="promptgen_send_to_img2img", visible=False
+            #         )
 
-                with FormRow():
-                    sampling_mode = gr.Radio(
-                        label="Sampling mode",
-                        elem_id="promptgen_sampling_mode",
-                        value="Top K",
-                        choices=["Top K", "Top P"],
-                    )
-                    top_k = gr.Slider(
-                        label="Top K",
-                        elem_id="promptgen_top_k",
-                        value=12,
-                        minimum=1,
-                        maximum=50,
-                        step=1,
-                    )
-                    top_p = gr.Slider(
-                        label="Top P",
-                        elem_id="promptgen_top_p",
-                        value=0.15,
-                        minimum=0,
-                        maximum=1,
-                        step=0.001,
-                    )
+            #         with FormRow():
+            #             sampling_mode = gr.Radio(
+            #                 label="Sampling mode",
+            #                 elem_id="promptgen_sampling_mode",
+            #                 value="Top K",
+            #                 choices=["Top K", "Top P"],
+            #             )
+            #             top_k = gr.Slider(
+            #                 label="Top K",
+            #                 elem_id="promptgen_top_k",
+            #                 value=12,
+            #                 minimum=1,
+            #                 maximum=50,
+            #                 step=1,
+            #             )
+            #             top_p = gr.Slider(
+            #                 label="Top P",
+            #                 elem_id="promptgen_top_p",
+            #                 value=0.15,
+            #                 minimum=0,
+            #                 maximum=1,
+            #                 step=0.001,
+            #             )
 
-                with gr.Row():
-                    num_beams = gr.Slider(
-                        label="Number of beams",
-                        elem_id="promptgen_num_beams",
-                        value=1,
-                        minimum=1,
-                        maximum=8,
-                        step=1,
-                    )
-                    temperature = gr.Slider(
-                        label="Temperature",
-                        elem_id="promptgen_temperature",
-                        value=1,
-                        minimum=0,
-                        maximum=4,
-                        step=0.01,
-                    )
-                    repetition_penalty = gr.Slider(
-                        label="Repetition penalty",
-                        elem_id="promptgen_repetition_penalty",
-                        value=1,
-                        minimum=1,
-                        maximum=4,
-                        step=0.01,
-                    )
+            #         with gr.Row():
+            #             num_beams = gr.Slider(
+            #                 label="Number of beams",
+            #                 elem_id="promptgen_num_beams",
+            #                 value=1,
+            #                 minimum=1,
+            #                 maximum=8,
+            #                 step=1,
+            #             )
+            #             temperature = gr.Slider(
+            #                 label="Temperature",
+            #                 elem_id="promptgen_temperature",
+            #                 value=1,
+            #                 minimum=0,
+            #                 maximum=4,
+            #                 step=0.01,
+            #             )
+            #             repetition_penalty = gr.Slider(
+            #                 label="Repetition penalty",
+            #                 elem_id="promptgen_repetition_penalty",
+            #                 value=1,
+            #                 minimum=1,
+            #                 maximum=4,
+            #                 step=0.01,
+            #             )
 
-                with FormRow():
-                    length_penalty = gr.Slider(
-                        label="Length preference",
-                        elem_id="promptgen_length_preference",
-                        value=1,
-                        minimum=-10,
-                        maximum=10,
-                        step=0.1,
-                    )
-                    min_length = gr.Slider(
-                        label="Min length",
-                        elem_id="promptgen_min_length",
-                        value=20,
-                        minimum=1,
-                        maximum=400,
-                        step=1,
-                    )
-                    max_length = gr.Slider(
-                        label="Max length",
-                        elem_id="promptgen_max_length",
-                        value=150,
-                        minimum=1,
-                        maximum=400,
-                        step=1,
-                    )
+            #         with FormRow():
+            #             length_penalty = gr.Slider(
+            #                 label="Length preference",
+            #                 elem_id="promptgen_length_preference",
+            #                 value=1,
+            #                 minimum=-10,
+            #                 maximum=10,
+            #                 step=0.1,
+            #             )
+            #             min_length = gr.Slider(
+            #                 label="Min length",
+            #                 elem_id="promptgen_min_length",
+            #                 value=20,
+            #                 minimum=1,
+            #                 maximum=400,
+            #                 step=1,
+            #             )
+            #             max_length = gr.Slider(
+            #                 label="Max length",
+            #                 elem_id="promptgen_max_length",
+            #                 value=150,
+            #                 minimum=1,
+            #                 maximum=400,
+            #                 step=1,
+            #             )
 
-                with FormRow():
-                    batch_count = gr.Slider(
-                        label="Batch count",
-                        elem_id="promptgen_batch_count",
-                        value=1,
-                        minimum=1,
-                        maximum=100,
-                        step=1,
-                    )
-                    batch_size = gr.Slider(
-                        label="Batch size",
-                        elem_id="promptgen_batch_size",
-                        value=10,
-                        minimum=1,
-                        maximum=100,
-                        step=1,
-                    )
+            #         with FormRow():
+            #             batch_count = gr.Slider(
+            #                 label="Batch count",
+            #                 elem_id="promptgen_batch_count",
+            #                 value=1,
+            #                 minimum=1,
+            #                 maximum=100,
+            #                 step=1,
+            #             )
+            #             batch_size = gr.Slider(
+            #                 label="Batch size",
+            #                 elem_id="promptgen_batch_size",
+            #                 value=10,
+            #                 minimum=1,
+            #                 maximum=100,
+            #                 step=1,
+            #             )
 
             with gr.Column():
                 with gr.Group(elem_id="promptgen_results_column"):
@@ -245,21 +294,34 @@ def on_ui_settings():
     section = ("promptgen", "Promptgen")
 
     shared.opts.add_option(
-        "promptgen_names",
+        "Google_API_KEY",
         shared.OptionInfo(
-            "AUTOMATIC/promptgen-lexart, AUTOMATIC/promptgen-majinai-safe, AUTOMATIC/promptgen-majinai-unsafe",
-            "Hugginface model names for promptgen, separated by comma",
+            "",
+            "Google API key (required for text generation)",
+            gr.Textbox,
+            {"type": "password"},
             section=section,
         ),
     )
+
     shared.opts.add_option(
-        "promptgen_device",
+        "promptgen_model",
         shared.OptionInfo(
-            "gpu",
-            "Device to use for text generation",
+            "gemini-1.5-flash",
+            "Model to use for text generation",
             gr.Radio,
-            {"choices": ["gpu", "cpu"]},
+            {"choices": ["gemini-1.5-flash", "gemini-1.5-pro"]},
             section=section,
+        ),
+    )
+
+    shared.opts.add_option(
+        "gemini_prompt",
+        shared.OptionInfo(
+            default_prompt,
+            "Prompt to use for text generation (has to include {{input}})",
+            gr.Textbox,
+            {"lines": 20},
         ),
     )
 
