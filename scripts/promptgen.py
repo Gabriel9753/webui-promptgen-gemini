@@ -322,6 +322,7 @@ def on_ui_settings():
             "Prompt to use for text generation (has to include {{input}})",
             gr.Textbox,
             {"lines": 20},
+            section=section,
         ),
     )
 
