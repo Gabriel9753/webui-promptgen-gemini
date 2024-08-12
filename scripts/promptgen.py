@@ -24,8 +24,7 @@ from modules.ui_components import FormRow
 # genai.configure(api_key=GOOGLE_API_KEY)
 # model = genai.GenerativeModel("gemini-1.5-flash")
 
-default_prompt = """
-You are an expert in creating detailed prompts using natural language to generate high quality images. The image generation model uses two different encoders to process the language:
+default_prompt = """You are an expert in creating detailed prompts using natural language to generate high quality images. The image generation model uses two different encoders to process the language:
 
 CLIP-optimized:
 - Use concise, keyword-rich descriptions
@@ -42,7 +41,7 @@ T5-optimized:
 -----------------------------------------------------------------------
 
 So use keywords and terms at the beginning of the new prompt to optimize for CLIP. Here, for example, the style and setting can be well directed.
-After the keywords to describe the image on a general level, optimize the prompt for T5. Here you can now use natural language to describe details of the image. Specific text can also be generated here by writing the text to be generated in "...".
+After the keywords to describe the image on a general level, optimize the prompt for T5. Here you can now use natural language to describe details of the image.
 
 Below I give you my request, in any language and roughly describing what I want for a picture. Then write ONLY the optimized prompt in ENGLISH LANGUAGE!!!! Really only generate the one prompt and nothing more!!! Not even in bullet points or split for CLIP and T5, but ONE prompt that I can use directly to generate an image.
 
@@ -54,17 +53,17 @@ My request:
 def generate_batch(model, input_text):
     try:
         response = model.generate_content(input_text, stream=False)
-        return response.text
+        return [response.text]
     except Exception as e:
-        return f"Error: {e}"
+        raise ValueError(f"Error generating text: {e}")
 
 
 def generate(prompt):
     print(f"The prompt is: {prompt}")
 
-    api_key = shared.opts.get("Google_API_KEY", "")
-    prompt_template = shared.opts.get("gemini_prompt", default_prompt)
-    model_name = shared.opts.get("promptgen_model", "gemini-1.5-flash")
+    api_key = shared.opts.Google_API_KEY
+    prompt_template = shared.opts.gemini_prompt
+    model_name = shared.opts.promptgen_model
 
     if api_key == "" or api_key is None:
         raise ValueError("Google API key is required for text generation")
@@ -142,17 +141,17 @@ def add_tab():
                     "Generate", elem_id="promptgen_generate", variant="primary"
                 )
 
-            # with gr.Row(elem_id="promptgen_main"):
-            #     with gr.Column(variant="compact"):
-            #         selected_text = gr.TextArea(
-            #             elem_id="promptgen_selected_text", visible=False
-            #         )
-            #         send_to_txt2img = gr.Button(
-            #             elem_id="promptgen_send_to_txt2img", visible=False
-            #         )
-            #         send_to_img2img = gr.Button(
-            #             elem_id="promptgen_send_to_img2img", visible=False
-            #         )
+            with gr.Row(elem_id="promptgen_main"):
+                with gr.Column(variant="compact"):
+                    selected_text = gr.TextArea(
+                        elem_id="promptgen_selected_text", visible=False
+                    )
+                    send_to_txt2img = gr.Button(
+                        elem_id="promptgen_send_to_txt2img", visible=False
+                    )
+                    send_to_img2img = gr.Button(
+                        elem_id="promptgen_send_to_img2img", visible=False
+                    )
 
             #         with FormRow():
             #             sampling_mode = gr.Radio(
