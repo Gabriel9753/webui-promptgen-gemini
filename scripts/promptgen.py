@@ -64,7 +64,7 @@ My request:
 {{input}}
 """
 
-upload_image_prompt = "\n\nAlso, I uploaded an image that can be used as a reference for the prompt. Use the image to generate the prompt more accurately."
+upload_image_prompt = "\n\nAlso, I uploaded an image that can be used as a reference for the prompt. Use the image to generate the prompt more accurately. Do not mention the image in the text, but include the information from the image in the text."
 
 style_prompt = "\n   Additionally, I want the following style for the image: {{style}}"
 style_dict = {
